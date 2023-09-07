@@ -16,10 +16,20 @@ public class Parser {
 
     Expr parse() {
         try {
-            return expression();
+            return expressionList();
         } catch (ParseError error) {
             return null;
         }
+    }
+
+    private Expr expressionList() {
+        Expr expr = expression();
+
+        while (match(COMMA)) {
+            expr = expression();
+        }
+
+        return expr;
     }
 
     private Expr expression() {
