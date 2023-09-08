@@ -16,24 +16,37 @@ public class Parser {
 
     Expr parse() {
         try {
-            return expressionList();
+            return expression();
         } catch (ParseError error) {
             return null;
         }
     }
 
-    private Expr expressionList() {
-        Expr expr = expression();
+    private Expr expression() {
+        return commaExpression();
+    }
+
+    private Expr commaExpression() {
+        Expr expr = ternary();
 
         while (match(COMMA)) {
-            expr = expression();
+            expr = ternary();
         }
 
         return expr;
     }
 
-    private Expr expression() {
-        return equality();
+    private Expr ternary() {
+        Expr expr = equality();
+
+        if (match(QUESTION_MARK)) {
+            Expr left = expression();
+            consume(COLON, "Expected colon in ternary operator.");
+            Expr right = expression();
+            return new Expr.Conditional(expr, left, right);
+        }
+
+        return expr;
     }
 
     private Expr equality() {
