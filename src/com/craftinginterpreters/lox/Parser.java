@@ -23,6 +23,10 @@ public class Parser {
     }
 
     private Expr expression() {
+        // unary minus is incorrectly flagged as a binary operator.
+        if (isBinaryOperator(peek().type)) {
+            throw error(peek(), "Found binary operator but expected expression.");
+        }
         return commaExpression();
     }
 
@@ -148,6 +152,25 @@ public class Parser {
 
     private boolean isAtEnd() {
         return peek().type == EOF;
+    }
+
+    private boolean isBinaryOperator(TokenType operator) {
+        switch(operator) {
+            case PLUS:
+            case STAR:
+            case SLASH:
+            case AND:
+            case OR:
+            case COLON:
+            case QUESTION_MARK:
+            case LESS:
+            case LESS_EQUAL:
+            case GREATER:
+            case GREATER_EQUAL:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private Token peek() {
