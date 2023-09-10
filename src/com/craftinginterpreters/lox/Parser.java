@@ -1,11 +1,13 @@
 package com.craftinginterpreters.lox;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.craftinginterpreters.lox.TokenType.*;
 
 public class Parser {
+    private int loopDepth = 0;
     private boolean allowExpression;
     private boolean foundExpression = false;
 
@@ -71,19 +73,85 @@ public class Parser {
 
     private Stmt statement() {
         if (match(IF)) return ifStatement();
-        if (match(PRINT)) return printStatement();
         if (match(WHILE)) return whileStatement();
+        if (match(FOR)) return forStatement();
+        if (match(PRINT)) return printStatement();
         if (match(LEFT_BRACE)) return new Stmt.Block(block());
+        if (match(BREAK)) return breakStatement();
 
         return expressionStatement();
+    }
+
+    private Stmt breakStatement() {
+        if (loopDepth == 0) {
+            error(previous(), "Must be inside a loop to use 'break'.");
+        }
+        consume(SEMICOLON, "Expected ';' after 'break'.");
+        return new Stmt.Break();
+    }
+
+    private Stmt forStatement() {
+        consume(LEFT_PAREN, "Expected '(' after a 'for'.");
+
+        Stmt initializer;
+        if (match(SEMICOLON)) {
+            initializer = null;
+        } else if (match(VAR)) {
+            initializer = varDeclaration();
+        } else {
+            initializer = expressionStatement();
+        }
+
+        Expr condition = null;
+        if (!check(SEMICOLON)) {
+            condition = expression();
+        }
+        consume(SEMICOLON, "Expected ';' after loop condition.");
+
+        Expr increment = null;
+        if (!check(SEMICOLON)) {
+            increment = expression();
+        }
+        consume(RIGHT_PAREN, "Expected ')' after loop.");
+
+        try {
+            // Maintain depth for break statement.
+            loopDepth++;
+            Stmt body = statement();
+
+            // Appends increment at the end of body
+            if (increment != null) {
+                body = new Stmt.Block(
+                        Arrays.asList(body, new Stmt.Expression(increment)));
+            }
+
+            // Supports for(;;) syntax as always true
+            if (condition == null) condition = new Expr.Literal(true);
+            body = new Stmt.While(condition, body);
+
+            // Initializer
+            if (initializer != null) {
+                body = new Stmt.Block(Arrays.asList(initializer, body));
+            }
+
+            return body;
+        } finally {
+            loopDepth--;
+        }
     }
 
     private Stmt whileStatement() {
         consume(LEFT_PAREN, "Expected '(' after 'while'.");
         Expr condition = expression();
         consume(RIGHT_PAREN, "Expected ')' after condition in 'while'.");
-        Stmt body = statement();
-        return new Stmt.While(condition, body);
+
+        try {
+            loopDepth++;
+            Stmt body = statement();
+            return new Stmt.While(condition, body);
+        } finally {
+            loopDepth--;
+        }
     }
 
     private Stmt ifStatement() {
@@ -227,7 +295,38 @@ public class Parser {
             Expr right = unary();
             return new Expr.Unary(operator, right);
         }
-        return primary();
+        return call();
+    }
+
+    private Expr call() {
+        Expr expr = primary();
+
+        while (true) {
+            if (match(LEFT_PAREN)) {
+                expr = finishCall(expr);
+            } else {
+                break;
+            }
+        }
+
+        return expr;
+    }
+
+    private Expr finishCall(Expr callee) {
+        List<Expr> arguments = new ArrayList<>();
+        if (!check(RIGHT_PAREN)) {
+            do {
+                if (arguments.size() >= 255) {
+                    // No need to enter panic mode by throwing, simply report the error.
+                    error(peek(), "Can't have more than 255 arguments.");
+                }
+                arguments.add(expression());
+            } while (match(COMMA));
+        }
+
+        Token paren = consume(RIGHT_PAREN, "Expected ')' after arguments.");
+
+        return new Expr.Call(callee, paren, arguments);
     }
 
     private Expr primary() {
