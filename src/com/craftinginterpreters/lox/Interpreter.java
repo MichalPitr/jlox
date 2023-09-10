@@ -8,6 +8,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     // vars stay in memory as long as interpreter runs.
     private Environment environment = new Environment();
 
+    private static final Object uninitialized = new Object();
+
     void interpret(List<Stmt> statements) {
         try {
             for (Stmt statement : statements) {
@@ -17,6 +19,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             Lox.runtimeError(error);
         }
     }
+
+    String interpret(Expr expression) {
+        try {
+            Object value = evaluate(expression);
+            return stringify(value);
+        } catch (RuntimeError error) {
+            Lox.runtimeError(error);
+            return null;
+        }
+    }
+
 
     //
     // Expression methods
@@ -80,6 +93,20 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Object visitLogicalExpr(Expr.Logical expr) {
+        // short circuit evaluation
+        Object left = evaluate(expr.left);
+
+        if (expr.operator.type == TokenType.OR) {
+            if (isTruthy(left)) return left;
+        } else {
+            if (!isTruthy(left)) return left;
+        }
+
+        return evaluate(expr.right);
+    }
+
+    @Override
     public Object visitGroupingExpr(Expr.Grouping expr) {
         return evaluate(expr.expression);
     }
@@ -107,7 +134,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Object visitVariableExpr(Expr.Variable expr) {
-        return environment.get(expr.name);
+        Object value = environment.get(expr.name);
+        if (value == uninitialized) {
+            throw new RuntimeError(expr.name,"Variable must be initialized before use.");
+        }
+        return value;
     }
 
     @Override
@@ -123,8 +154,25 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     //
 
     @Override
+    public Void visitBlockStmt(Stmt.Block stmt) {
+        // We make a new child environment!
+        executeBlock(stmt.statements, new Environment(environment));
+        return null;
+    }
+
+    @Override
     public Void visitExpressionStmt(Stmt.Expression stmt) {
         evaluate(stmt.expression);
+        return null;
+    }
+
+    @Override
+    public Void visitIfStmt(Stmt.If stmt) {
+        if (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.thenBranch);
+        } else if (stmt.elseBranch != null) {
+            execute(stmt.elseBranch);
+        }
         return null;
     }
 
@@ -137,7 +185,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitVarStmt(Stmt.Var stmt) {
-        Object value = null;
+        Object value = uninitialized;
         if (stmt.initializer != null) {
             value = evaluate(stmt.initializer);
         }
@@ -148,6 +196,22 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     //
     // Helpers
     //
+
+    private void executeBlock(List<Stmt> statements, Environment environment) {
+        // reference to current environment.
+        Environment previous = this.environment;
+
+        try {
+            this.environment = environment;
+
+            for (Stmt statement : statements) {
+                execute(statement);
+            }
+        } finally {
+            // When we are done executing, reset current environment to the previous one. (kinda like stack frame.)
+            this.environment = previous;
+        }
+    }
 
     private void checkNumberOperand(Token operator, Object operand) {
         if (operand instanceof Double) return;
@@ -169,7 +233,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private boolean isTruthy(Object object) {
         if (object == null) return false;
         if (object instanceof Boolean) return (boolean)object;
-
+        if (object instanceof Double) return (Double)object != 0;
         // Empty list is true! I don't like this but it's simple.
         return true;
     }

@@ -6,6 +6,9 @@ import java.util.List;
 import static com.craftinginterpreters.lox.TokenType.*;
 
 public class Parser {
+    private boolean allowExpression;
+    private boolean foundExpression = false;
+
     private static class ParseError extends RuntimeException {}
 
     private final List<Token> tokens;
@@ -19,6 +22,24 @@ public class Parser {
         List<Stmt> statements = new ArrayList<>();
         while (!isAtEnd()) {
             statements.add(declaration());
+        }
+
+        return statements;
+    }
+
+    Object parseRepl() {
+        allowExpression = true;
+        List<Stmt> statements = new ArrayList<>();
+
+        while (!isAtEnd()) {
+            statements.add(declaration());
+
+            if (foundExpression) {
+                Stmt last = statements.get(statements.size() - 1);
+                return ((Stmt.Expression) last).expression;
+            }
+
+            allowExpression = false;
         }
 
         return statements;
@@ -49,10 +70,35 @@ public class Parser {
     }
 
     private Stmt statement() {
-        if (match(PRINT)) {
-            return printStatement();
-        }
+        if (match(IF)) return ifStatement();
+        if (match(PRINT)) return printStatement();
+        if (match(LEFT_BRACE)) return new Stmt.Block(block());
+
         return expressionStatement();
+    }
+
+    private Stmt ifStatement() {
+        consume(LEFT_PAREN, "Expected '(' after 'if'.");
+        Expr condition = expression();
+        consume(RIGHT_PAREN, "Expected ')' after an if condition.");
+
+        Stmt thenBranch = statement();
+        Stmt elseBranch = null;
+        if (match(ELSE)) {
+            elseBranch = statement();
+        }
+        return new Stmt.If(condition, thenBranch, elseBranch);
+    }
+
+    private List<Stmt> block() {
+        List<Stmt> statements = new ArrayList<>();
+
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
+            statements.add(declaration());
+        }
+
+        consume(RIGHT_BRACE, "Expected '}' after a block.");
+        return statements;
     }
 
     private Stmt printStatement() {
@@ -63,30 +109,22 @@ public class Parser {
 
     private Stmt expressionStatement() {
         Expr value = expression();
-        consume(SEMICOLON, "Expected ';' after value.");
+
+        // Allow no semicolon in repl mode.
+        if (allowExpression && isAtEnd()) {
+            foundExpression = true;
+        } else {
+            consume(SEMICOLON, "Expected ';' after value.");
+        }
         return new Stmt.Expression(value);
     }
 
     private Expr expression() {
-        // unary minus is incorrectly flagged as a binary operator.
-        if (isBinaryOperator(peek().type)) {
-            throw error(peek(), "Found binary operator but expected expression.");
-        }
-        return commaExpression();
-    }
-
-    private Expr commaExpression() {
-        Expr expr = assignment();
-
-        while (match(COMMA)) {
-            expr = assignment();
-        }
-
-        return expr;
+        return assignment();
     }
 
     private Expr assignment() {
-        Expr expr = ternary();
+        Expr expr = or();
 
         if (match(EQUAL)) {
             Token equals = previous();
@@ -104,17 +142,26 @@ public class Parser {
         return expr;
     }
 
-    private Expr ternary() {
-        Expr expr = equality();
+    private Expr or() {
+        Expr left = and();
+        while (match(OR)) {
+            Token operator = previous();
+            Expr right = and();
+            left = new Expr.Logical(left, operator, right);
+        }
+        return left;
+    }
 
-        if (match(QUESTION_MARK)) {
-            Expr left = expression();
-            consume(COLON, "Expected colon in ternary operator.");
-            Expr right = expression();
-            return new Expr.Conditional(expr, left, right);
+    private Expr and() {
+        Expr left = equality();
+
+        while (match(AND)) {
+            Token operator = previous();
+            Expr right = equality();
+            left = new Expr.Logical(left, operator, right);
         }
 
-        return expr;
+        return left;
     }
 
     private Expr equality() {
@@ -220,25 +267,6 @@ public class Parser {
 
     private boolean isAtEnd() {
         return peek().type == EOF;
-    }
-
-    private boolean isBinaryOperator(TokenType operator) {
-        switch(operator) {
-            case PLUS:
-            case STAR:
-            case SLASH:
-            case AND:
-            case OR:
-            case COLON:
-            case QUESTION_MARK:
-            case LESS:
-            case LESS_EQUAL:
-            case GREATER:
-            case GREATER_EQUAL:
-                return true;
-            default:
-                return false;
-        }
     }
 
     private Token peek() {
