@@ -1,3 +1,17 @@
-class Bagel {}
-var bagel = Bagel();
-print bagel; // Prints "Bagel instance".
+class Person {
+  init(name) {
+    this.name = name;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  hello(greetings) {
+    print greetings + " " + this.name;
+  }
+}
+
+var michal = Person("michal");
+print michal.getName();
+michal.hello("Osu");
