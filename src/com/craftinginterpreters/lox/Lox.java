@@ -69,6 +69,13 @@ public class Lox {
         // Stop if syntax error occurred.
         if (hadError) return;
 
+        // Resolves variable names.
+        Resolver resolver = new Resolver(interpreter);
+        resolver.resolve(statements);
+
+        // Stop if any resolution errors occurred.
+        if (hadError) return;
+
         interpreter.interpret(statements);
     }
 
