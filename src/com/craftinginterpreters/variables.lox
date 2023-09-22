@@ -1,17 +1,7 @@
-class Person {
-  init(name) {
-    this.name = name;
-  }
-
-  getName() {
-    return this.name;
-  }
-
-  hello(greetings) {
-    print greetings + " " + this.name;
+class Math {
+  class square(n) {
+    return n * n;
   }
 }
 
-var michal = Person("michal");
-print michal.getName();
-michal.hello("Osu");
+print Math.square(3); // Prints "9".

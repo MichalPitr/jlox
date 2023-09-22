@@ -159,6 +159,13 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         // Add this as local variable. Since it's not a real variable, set line the same as class declaration.
         scopes.peek().put("this", new Variable(new Token(TokenType.THIS, "this", null, stmt.name.line), VariableState.READ));
 
+        for (Stmt.Function method : stmt.classMethods) {
+            beginScope();
+            scopes.peek().put("this", new Variable(new Token(TokenType.THIS, "this", null, method.name.line), VariableState.READ));
+            resolveFunction(method, FunctionType.METHOD);
+            endScope();
+        }
+
         for (Stmt.Function method : stmt.methods) {
             FunctionType declaration = FunctionType.METHOD;
             if (method.name.lexeme.equals("init")) {
