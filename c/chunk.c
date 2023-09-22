@@ -7,6 +7,8 @@ void initChunk(Chunk* chunk) {
     chunk->count = 0;
     chunk->capacity = 0;
     chunk->code = NULL;
+    // same as &(chunk->constants), hence we get the constants array and dereference to get the pointer to the array.
+    initValueArray(&chunk->constants);
 }
 
 void freeChunk(Chunk* chunk) {
@@ -26,4 +28,9 @@ void writeChunk(Chunk* chunk, uint8_t byte) {
     // Can index here! Neat.
     chunk->code[chunk->count] = byte;
     chunk->count++;
+}
+
+int addConstant(Chunk* chunk, Value value) {
+    writeValueArray(&chunk->constants, value);
+    return chunk->constants.count - 1;
 }
