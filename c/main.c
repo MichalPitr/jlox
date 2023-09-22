@@ -7,11 +7,11 @@ int main(int argc, const char* argv[]) {
     initChunk(&chunk);
 
     int constantIdx = addConstant(&chunk, 1.2);
-    writeChunk(&chunk, OP_CONSTANT);
-    writeChunk(&chunk, constantIdx);
+    writeChunk(&chunk, OP_CONSTANT, 123);
+    writeChunk(&chunk, constantIdx, 123);
 
 
-    writeChunk(&chunk, OP_RETURN);
+    writeChunk(&chunk, OP_RETURN, 123);
 
     disassambleChunk(&chunk, "test chunk");
     freeChunk(&chunk);
