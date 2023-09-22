@@ -191,6 +191,22 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Object visitSuperExpr(Expr.Super expr) {
+        int distance = locals.get(expr);
+        LoxClass superclass = (LoxClass)environment.getAt(distance, "super");
+        // This is tricky. Check chapter 13. We need to bind "this" to point to the current object even if we reference
+        // the superclass. We know that 'this' is always right inside of the env where we store 'super'.
+        LoxInstance object = (LoxInstance)environment.getAt(distance-1, "this");
+
+        LoxFunction method = superclass.findMethod(expr.method.lexeme);
+
+        if (method == null) {
+            throw new RuntimeError(expr.method, "Undefined property '" + expr.method.lexeme + "'.");
+        }
+        return method.bind(object);
+    }
+
+    @Override
     public Object visitGroupingExpr(Expr.Grouping expr) {
         return evaluate(expr.expression);
     }
@@ -251,7 +267,23 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitClassStmt(Stmt.Class stmt) {
+        // Superclass
+        Object superclass = null;
+        if (stmt.superclass != null) {
+            superclass = evaluate(stmt.superclass);
+            if (!(superclass instanceof LoxClass)) {
+                throw new RuntimeError(stmt.superclass.name, "Superclass must be a class.");
+            }
+        }
+
+        // Subclass
         environment.define(stmt.name.lexeme, null);
+
+        if (stmt.superclass != null) {
+            environment = new Environment(environment);
+            // The subclass gets a variable 'super' that points to superclass.
+            environment.define("super", superclass);
+        }
 
         Map<String, LoxFunction> classMethods = new HashMap<>();
         for (Stmt.Function method : stmt.classMethods) {
@@ -261,7 +293,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
         // Metaclass is a class that every normal class inherits from. It holds the static methods for normal classes.
         // Hence, there is only one instance of this class.
-        LoxClass metaclass = new LoxClass(null, stmt.name.lexeme + " metaclass", classMethods);
+        LoxClass metaclass = new LoxClass(null, stmt.name.lexeme + " metaclass", null, classMethods);
 
 
         Map<String, LoxFunction> methods = new HashMap<>();
@@ -270,7 +302,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             methods.put(method.name.lexeme, function);
         }
 
-        LoxClass klass = new LoxClass(metaclass, stmt.name.lexeme, methods);
+        LoxClass klass = new LoxClass(metaclass, stmt.name.lexeme, (LoxClass)superclass, methods);
+        if (superclass != null) {
+            environment = environment.enclosing;
+        }
         environment.assign(stmt.name, klass);
         return null;
     }

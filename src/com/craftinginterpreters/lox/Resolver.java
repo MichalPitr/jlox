@@ -40,7 +40,8 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private enum ClassType {
         NONE,
-        CLASS
+        CLASS,
+        SUBCLASS,
     }
 
     private ClassType currentClass = ClassType.NONE;
@@ -81,6 +82,17 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             return null;
         }
         resolveLocal(expr, expr.keyword, true);
+        return null;
+    }
+
+    @Override
+    public Void visitSuperExpr(Expr.Super expr) {
+        if (currentClass == ClassType.NONE) {
+            Lox.error(expr.keywords, "Can't user 'super' outside of a class.");
+        } else if (currentClass != ClassType.SUBCLASS) {
+            Lox.error(expr.keywords, "Can't user 'super' in a class with no superclass.");
+        }
+        resolveLocal(expr, expr.keywords, true);
         return null;
     }
 
@@ -154,6 +166,22 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         declare(stmt.name);
         define(stmt.name);
 
+        if (stmt.superclass != null && stmt.name.lexeme.equals(stmt.superclass.name.lexeme)) {
+            Lox.error(stmt.superclass.name, "A class cannot inherit from itself.");
+        }
+
+        if (stmt.superclass != null) {
+            currentClass = ClassType.SUBCLASS;
+            resolve(stmt.superclass);
+        }
+
+        if (stmt.superclass != null) {
+            // Wrap class in a new scope that contains the variable 'super'.
+            beginScope();
+            // Trick to insert super as a variable.
+            scopes.peek().put("super", new Variable(new Token(TokenType.SUPER, "super", null, stmt.superclass.name.line), VariableState.READ));
+        }
+
         beginScope();
 
         // Add this as local variable. Since it's not a real variable, set line the same as class declaration.
@@ -175,6 +203,9 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         }
 
         endScope();
+
+        if (stmt.superclass != null) endScope();
+
         currentClass = enclosingClass;
         return null;
     }
