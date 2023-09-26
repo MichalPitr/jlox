@@ -77,6 +77,7 @@ static void advance() {
     parser.previous = parser.current;
 
     for (;;) {
+        // On demand scanning. 
         parser.current = scanToken();
         if (parser.current.type != TOKEN_ERROR) break;
 
@@ -159,7 +160,7 @@ static void number() {
     // character no belonging to a number.
     double value = strtod(parser.previous.start, NULL);
 
-    emitConstant(value);
+    emitConstant(NUMBER_VAL(value));
 }
 
 static void unary() {
@@ -262,6 +263,7 @@ bool compile(const char* source, Chunk* chunk) {
     initScanner(source);
     // Makes the chunk available throughout the module.
     compilingChunk = chunk;
+    // Prime the scanner.
     advance();
     expression();
     consume(TOKEN_EOF, "Expected end of expression.");
