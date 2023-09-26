@@ -1,5 +1,1 @@
-print 1 + 2;
-
-fun hello(name) {
-  return "hello " + name;
-}
+(-1 + 2) * 3 - -4
