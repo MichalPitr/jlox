@@ -34,9 +34,13 @@ static void runtimeError(const char* format, ...) {
 void initVM() {
     resetStack();
     vm.objects = NULL;
+    initTable(&vm.globals);
+    initTable(&vm.strings);
 }
 
 void freeVM() {
+    initTable(&vm.globals);
+    freeTable(&vm.strings);
     freeObjects();
 }
 
@@ -69,10 +73,22 @@ static void concatenate() {
 
     int length = a->length + b->length;
 
-    ObjString* result = makeString(length);
+    ObjString* result = makeString(length, 0);
     memcpy(result->chars, a->chars, a->length);
     memcpy(result->chars + a->length, b->chars, b->length);
     result->chars[length] = '\0';
+    
+    // Check if the concated string is already interned, if so, just return that.
+    uint32_t hash = hashString(result->chars, result->length);
+    ObjString* interned = tableFindString(&vm.strings, result->chars, length, hash);
+    if (interned != NULL) {
+        push(OBJ_VAL(interned));
+        return;
+    }
+    
+    // otherwise set the hash and add the string to vm.strings table.
+    result->hash = hash; 
+    tableSet(&vm.strings, result, NIL_VAL);
 
     push(OBJ_VAL(result));
 }
@@ -80,6 +96,7 @@ static void concatenate() {
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_STRING() AS_STRING(READ_CONSTANT())
 // do while macro ensures the expanded statements are in the same scope.
 #define BINARY_OP(valueType, op) \
     do { \
@@ -124,6 +141,39 @@ static InterpretResult run() {
             case OP_NIL: push(NIL_VAL); break;
             case OP_TRUE: push(BOOL_VAL(true)); break;
             case OP_FALSE: push(BOOL_VAL(false)); break;
+            case OP_POP: pop(); break;
+            case OP_GET_GLOBAL: {
+                ObjString* name = READ_STRING();
+                Value value;
+                if (!tableGet(&vm.globals, name, &value)) {
+                    runtimeError("Undefined variable '%s'.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                push(value);
+                break;
+            }
+            case OP_DEFINE_GLOBAL: {
+                // Get variable name from constant table.
+                ObjString* name = READ_STRING();
+                // Get value from top of stack and store in hash table.
+                tableSet(&vm.globals, name, peek(0));
+                // Only pop after value is added to hash set, otherwise it might
+                // get garbage collected. Wild.
+                pop();
+                break;
+            }
+            case OP_SET_GLOBAL: {
+                ObjString* name = READ_STRING();
+                // Var has to be in hashset already, otherwise asignment is invalid. 
+                // If key exists doesn't exist, tableSet returns true.
+                // If it exists, we simply overwrite it.
+                if (tableSet(&vm.globals, name, peek(0))) {
+                    tableDelete(&vm.globals, name); // undo setting.
+                    runtimeError("Undefined variable '%s'.", name->chars);
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                break;
+            }
             case OP_EQUAL: {
                 Value b = pop();
                 Value a = pop();
@@ -161,9 +211,13 @@ static InterpretResult run() {
                 *(vm.stackTop - 1) = NUMBER_VAL(-AS_NUMBER(*(vm.stackTop - 1)));
                 break;
             }
-            case OP_RETURN: {
+            case OP_PRINT: {
                 printValue(pop());
                 printf("\n");
+                break;
+            }
+            case OP_RETURN: {
+                // Exit interpreter.
                 return INTERPRET_OK;
             }
         }
@@ -171,6 +225,7 @@ static InterpretResult run() {
 
 #undef READ_BYTE
 #undef READ_CONSTANT
+#undef READ_STRING
 #undef BINARY_OP
 }
 

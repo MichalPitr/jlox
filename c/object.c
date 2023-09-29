@@ -3,6 +3,7 @@
 
 #include "memory.h"
 #include "object.h"
+#include "table.h"
 #include "value.h"
 #include "vm.h"
 
@@ -26,19 +27,39 @@ static Obj* allocateObject(size_t size, ObjType type) {
 //     return string;
 // }
 
+// FNV-1a hash algorithm.
+uint32_t hashString(const char* key, int length) {
+    uint32_t hash = 2166136261u;
+    for (int i = 0; i < length; i++) {
+        hash ^= (uint8_t)key[i]; // xor
+        hash *= 16777619; // scatter data around
+    }
+}
+
 // Sort of like constructor
-ObjString* makeString(int length) {
+ObjString* makeString(int length, uint32_t hash) {
     ObjString* string = (ObjString*)allocateObject(sizeof(ObjString) + length + 1, OBJ_STRING);
     string->length = length;
+    string->hash = hash;
     return string;
 }
 
 ObjString* copyString(const char* chars, int length) {
+    uint32_t hash = hashString(chars, length);
+
+    // When copying a string, if the exact string already exists somewhere,
+    // just return that one and don't make a new one.
+    ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
+    if (interned != NULL) return interned;
+    
     // Allocate space for string
-    ObjString* string = makeString(length);
+    ObjString* string = makeString(length, hash);
     // copy string
     memcpy(string->chars, chars, length);
     string->chars[length] = '\0';
+
+    tableSet(&vm.strings, string, NIL_VAL);
+
     return string;
 }
 

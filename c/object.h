@@ -23,12 +23,14 @@ struct Obj {
 
 struct ObjString {
     Obj obj; // The Obj struct will be inlined.
+    uint32_t hash;
     int length;
     char chars[]; // Flexible array member to inline string in the struct.
 };
 
+uint32_t hashString(const char* key, int length);
 // Takes ownership of the passed in string.
-ObjString* makeString(int length);
+ObjString* makeString(int length, uint32_t hash);
 // Does not take ownership of chars it takes.
 ObjString* copyString(const char* chars, int length);
 void printObject(Value value);

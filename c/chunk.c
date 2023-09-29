@@ -77,21 +77,22 @@ int getLine(Chunk* chunk, int instruction) {
     }
 }
 
-void writeConstant(Chunk* chunk, Value value, int line) {
-    int constantIdx = addConstant(chunk, value);
+// int writeConstant(Chunk* chunk, Value value, int line) {
+//     int constantIdx = addConstant(chunk, value);
     
-    if (constantIdx < 256) {
-        writeChunk(chunk, OP_CONSTANT, line);
-        writeChunk(chunk, (uint8_t)constantIdx, line);
-    } else {
-        writeChunk(chunk, OP_CONSTANT_LONG, line);
-        // Since we use 1byte array, we need to split 3 bytes into 3 1-byte writes.
-        // We use little-endian encoding.
-        // Use mask to select the least-significant byte
-        writeChunk(chunk, (uint8_t)(constantIdx & 0xff), line);
-        // shift by 1 byte and repeat
-        writeChunk(chunk, (uint8_t)((constantIdx >> 8) & 0xff), line);
-        // shift by 1 byte and repeat
-        writeChunk(chunk, (uint8_t)((constantIdx >> 16) & 0xff), line);
-    }
-}
+//     if (constantIdx < 256) {
+//         writeChunk(chunk, OP_CONSTANT, line);
+//         writeChunk(chunk, (uint8_t)constantIdx, line);
+//     } else {
+//         writeChunk(chunk, OP_CONSTANT_LONG, line);
+//         // Since we use 1byte array, we need to split 3 bytes into 3 1-byte writes.
+//         // We use little-endian encoding.
+//         // Use mask to select the least-significant byte
+//         writeChunk(chunk, (uint8_t)(constantIdx & 0xff), line);
+//         // shift by 1 byte and repeat
+//         writeChunk(chunk, (uint8_t)((constantIdx >> 8) & 0xff), line);
+//         // shift by 1 byte and repeat
+//         writeChunk(chunk, (uint8_t)((constantIdx >> 16) & 0xff), line);
+//     }
+//     return constantIdx;
+// }

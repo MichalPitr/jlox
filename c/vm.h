@@ -2,6 +2,7 @@
 #define clox_vm_h
 
 #include "chunk.h"
+#include "table.h"
 #include "value.h"
 
 #define STACK_MAX 256
@@ -11,6 +12,8 @@ typedef struct {
     uint8_t* ip; // pointer to a byte, pointer dereference is faster than array indexing!
     Value stack[STACK_MAX]; // defined inline, i.e. contiguously within the struct! 
     Value* stackTop;
+    Table globals; // hashmap of global variables.
+    Table strings; // hashmap of strings, used to map "equal" strings.
     Obj* objects; // LinkedList of heap-allocated objets.
 } VM;
 
