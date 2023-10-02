@@ -21,9 +21,14 @@ typedef enum {
     OP_NEGATE,
     OP_POP,
     OP_PRINT,
+    OP_JUMP_IF_FALSE,
+    OP_JUMP, // followed by 2 bytes that specify a 16bit increment to IP.
+    OP_LOOP, // followed by 2 bytes that specify a 16bit decrement to IP.
     OP_DEFINE_GLOBAL,
     OP_GET_GLOBAL,
     OP_SET_GLOBAL,
+    OP_GET_LOCAL,
+    OP_SET_LOCAL,
     OP_RETURN,
 } OpCode;
 

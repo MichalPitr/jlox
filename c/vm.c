@@ -96,6 +96,9 @@ static void concatenate() {
 static InterpretResult run() {
 #define READ_BYTE() (*vm.ip++)
 #define READ_CONSTANT() (vm.chunk->constants.values[READ_BYTE()])
+#define READ_SHORT() \
+    (vm.ip += 2, (uint16_t)((vm.ip[-2] << 8) | vm.ip[-1]))
+
 #define READ_STRING() AS_STRING(READ_CONSTANT())
 // do while macro ensures the expanded statements are in the same scope.
 #define BINARY_OP(valueType, op) \
@@ -142,6 +145,18 @@ static InterpretResult run() {
             case OP_TRUE: push(BOOL_VAL(true)); break;
             case OP_FALSE: push(BOOL_VAL(false)); break;
             case OP_POP: pop(); break;
+            case OP_GET_LOCAL: {
+                // Reads the value from the stack and then pushes it to the top to make
+                // it accessible by other instructions.
+                uint8_t slot = READ_BYTE();
+                push(vm.stack[slot]);
+                break;
+            }
+            case OP_SET_LOCAL: {
+                uint8_t slot = READ_BYTE();
+                vm.stack[slot] = peek(0);
+                break;
+            }
             case OP_GET_GLOBAL: {
                 ObjString* name = READ_STRING();
                 Value value;
@@ -216,6 +231,21 @@ static InterpretResult run() {
                 printf("\n");
                 break;
             }
+            case OP_JUMP_IF_FALSE: {
+                uint16_t offset = READ_SHORT();
+                if (isFalsey(peek(0))) vm.ip += offset;
+                break;
+            }
+            case OP_JUMP: {
+                uint16_t offset = READ_SHORT();
+                vm.ip += offset;
+                break;
+            }
+            case OP_LOOP: {
+                uint16_t offset = READ_SHORT();
+                vm.ip -= offset;
+                break;
+            }
             case OP_RETURN: {
                 // Exit interpreter.
                 return INTERPRET_OK;
@@ -224,6 +254,7 @@ static InterpretResult run() {
     }
 
 #undef READ_BYTE
+#undef READ_SHORT
 #undef READ_CONSTANT
 #undef READ_STRING
 #undef BINARY_OP
