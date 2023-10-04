@@ -27,6 +27,10 @@ static void freeObject(Obj* object) {
             FREE(ObjFunction, object);
             break;
         }
+        case OBJ_NATIVE: {
+            FREE(ObjNative, object);
+            break;
+        }
         case OBJ_STRING: {
             ObjString* string = (ObjString*)object;
             // can free since the string is inlined. sizeof assumes the string is 0 len, so we need to add length and '\0'.
