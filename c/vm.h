@@ -1,15 +1,25 @@
 #ifndef clox_vm_h
 #define clox_vm_h
 
+#include "object.h"
 #include "chunk.h"
 #include "table.h"
 #include "value.h"
 
-#define STACK_MAX 256
+#define FRAMES_MAX 64
+#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
+
 
 typedef struct {
-    Chunk* chunk;
-    uint8_t* ip; // pointer to a byte, pointer dereference is faster than array indexing!
+    ObjFunction* function;
+    uint8_t* ip;
+    Value* slots;
+} CallFrame;
+
+typedef struct {
+    CallFrame frames[FRAMES_MAX];
+    int frameCount;
+
     Value stack[STACK_MAX]; // defined inline, i.e. contiguously within the struct! 
     Value* stackTop;
     Table globals; // hashmap of global variables.
