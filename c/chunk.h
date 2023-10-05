@@ -30,6 +30,7 @@ typedef enum {
     OP_GET_LOCAL,
     OP_SET_LOCAL,
     OP_CALL,
+    OP_CLOSURE,
     OP_RETURN,
 } OpCode;
 

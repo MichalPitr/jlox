@@ -21,6 +21,11 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 
 static void freeObject(Obj* object) {
     switch (object->type) {
+        case OBJ_CLOSURE: {
+            // We only free the object, no the function. The object is first in the struct.
+            FREE(ObjClosure, object);
+            break;
+        }
         case OBJ_FUNCTION: {
             ObjFunction* function = (ObjFunction*)object;
             freeChunk(&function->chunk);
