@@ -36,7 +36,8 @@ typedef struct {
     ObjString* name;
 } ObjFunction;
 
-typedef Value (*NativeFn) (int argCount, Value* args);
+// bool indicates if function executed correctly, return value returned as args[0].
+typedef bool (*NativeFn) (int argCount, Value* args);
 
 typedef struct {
     Obj obj;
