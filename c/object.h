@@ -25,6 +25,7 @@ typedef enum {
     OBJ_FUNCTION,
     OBJ_NATIVE,
     OBJ_STRING,
+    OBJ_UPVALUE,
 } ObjType;
 
 struct Obj {
@@ -35,6 +36,7 @@ struct Obj {
 typedef struct {
     Obj obj;
     int arity; // number of parameters
+    int upvalueCount;
     Chunk chunk; // bytecode
     ObjString* name;
 } ObjFunction;
@@ -54,9 +56,18 @@ struct ObjString {
     char chars[]; // Flexible array member to inline string in the struct.
 };
 
+typedef struct ObjUpvalue {
+    Obj obj;
+    Value* location; // Pointer to a Value, multiple closures can reference the same variable.
+    Value closed;
+    struct ObjUpvalue* next;
+} ObjUpvalue;
+
 typedef struct {
     Obj obj;
     ObjFunction* function;
+    ObjUpvalue** upvalues; // Array of pointers to upvalues.
+    int upvalueCount;
 } ObjClosure;
 
 ObjClosure* newClosure(ObjFunction* function);
@@ -67,6 +78,7 @@ uint32_t hashString(const char* key, int length);
 ObjString* makeString(int length, uint32_t hash);
 // Does not take ownership of chars it takes.
 ObjString* copyString(const char* chars, int length);
+ObjUpvalue* newUpvalue(Value* slot);
 void printObject(Value value);
 
 static inline bool isObjType(Value value, ObjType type) {

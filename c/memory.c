@@ -22,6 +22,8 @@ void* reallocate(void* pointer, size_t oldSize, size_t newSize) {
 static void freeObject(Obj* object) {
     switch (object->type) {
         case OBJ_CLOSURE: {
+            ObjClosure* closure = (ObjClosure*)object;
+            FREE_ARRAY(ObjUpvalue*, closure->upvalues, closure->upvalueCount);
             // We only free the object, no the function. The object is first in the struct.
             FREE(ObjClosure, object);
             break;
@@ -42,6 +44,9 @@ static void freeObject(Obj* object) {
             reallocate(object, sizeof(ObjString) + string->length + 1, 0);
             break;
         }
+        case OBJ_UPVALUE:
+            FREE(ObjUpvalue, object);
+            break;
     }
 }
 

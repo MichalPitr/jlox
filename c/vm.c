@@ -37,6 +37,7 @@ static void resetStack() {
     // simply point to the start of the stack. It doesn't matter if the rest of the stack is dirty.
     vm.stackTop = vm.stack;
     vm.frameCount = 0;
+    vm.openUpvalues = NULL;
 }
 
 // Let's us specify variable number of args.
@@ -146,6 +147,45 @@ static bool callValue(Value callee, int argCount) {
     return false;
 }
 
+static ObjUpvalue* captureUpvalue(Value* local) {
+    ObjUpvalue* prevUpvalue = NULL;
+    ObjUpvalue* upvalue = vm.openUpvalues;
+    while (upvalue != NULL && upvalue->location > local) {
+        prevUpvalue = upvalue;
+        upvalue = upvalue->next;
+    }
+
+    // found upvalue.
+    if (upvalue != NULL && upvalue->location == local) {
+        return upvalue;
+    }
+
+    // Otherwise make a new upvalue and insert it into the sorted linked list.
+    ObjUpvalue* createdUpvalue = newUpvalue(local);
+    createdUpvalue->next = upvalue;
+    
+    // insert at the head.
+    if (prevUpvalue == NULL) {
+        vm.openUpvalues = createdUpvalue;
+    } else {
+        prevUpvalue->next = createdUpvalue;
+    }
+
+    return createdUpvalue;
+}
+
+static void closeUpvalues(Value* last) {
+    while (vm.openUpvalues != NULL && vm.openUpvalues->location >= last) {
+        ObjUpvalue* upvalue = vm.openUpvalues;
+        upvalue->closed = *upvalue->location;
+        // Simply points to its own field. 
+        // This lets us reuse the same OP_GET/SET_UPVALUE without change.
+        upvalue->location = &upvalue->closed; 
+        
+        vm.openUpvalues = upvalue->next;
+    }
+}
+
 /* 
     Value is "falsey" if its null or false, otherwise true
     This makes 0 also true, which feels odd.
@@ -239,6 +279,16 @@ static InterpretResult run() {
             case OP_SET_LOCAL: {
                 uint8_t slot = READ_BYTE();
                 frame->slots[slot] = peek(0);
+                break;
+            }
+            case OP_GET_UPVALUE: {
+                uint8_t slot = READ_BYTE();
+                push(*frame->closure->upvalues[slot]->location);
+                break;
+            }
+            case OP_SET_UPVALUE: {
+                uint8_t slot = READ_BYTE();
+                *frame->closure->upvalues[slot]->location = peek(0);
                 break;
             }
             case OP_GET_GLOBAL: {
@@ -349,10 +399,30 @@ static InterpretResult run() {
                 ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
                 ObjClosure* closure = newClosure(function);
                 push(OBJ_VAL(closure));
+                for (int i = 0; i < closure->upvalueCount; i++) {
+                    uint8_t isLocal = READ_BYTE();
+                    uint8_t index = READ_BYTE();
+                    if (isLocal) {
+                        // Stores local in upvalue
+                        closure->upvalues[i] =
+                            captureUpvalue(frame->slots + index);
+                    } else {
+                        // Stores upvalue from enclosing in current's upvalues.
+                        // Frame referes to enclosing function here.
+                        closure->upvalues[i] = frame->closure->upvalues[index];
+                    }
+                }
+                break;
+            }
+            case OP_CLOSE_UPVALUE: {
+                closeUpvalues(vm.stackTop - 1);
+                pop();
                 break;
             }
             case OP_RETURN: {
                 Value result = pop();
+                // When function returns we may need to hoist some variables.
+                closeUpvalues(frame->slots);
                 vm.frameCount--;
                 // Return in top-level code. 
                 if (vm.frameCount == 0) {
