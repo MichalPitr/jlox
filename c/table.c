@@ -143,3 +143,22 @@ ObjString* tableFindString(Table* table, const char* chars,
     }
 }
 
+// This removes strings from string table to prevent danging pointer references after sweep runs.
+void tableRemoveWhite(Table* table) {
+    for (int i = 0; i < table->capacity; i++) {
+        Entry* entry = &table->entries[i];
+        if (entry->key != NULL && !entry->key->obj.isMarked) {
+            tableDelete(table, entry->key);
+        }
+    }
+}
+
+// Loop over hash table and mark every key and object.
+void markTable(Table* table) {
+    for (int i = 0; i < table->capacity; i++) {
+        Entry* entry = &table->entries[i];
+        // String object keys are also managed by gc.
+        markObject((Obj*)entry->key);
+        markValue(entry->value);
+    }
+}

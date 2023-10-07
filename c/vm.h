@@ -25,7 +25,13 @@ typedef struct {
     Table globals; // hashmap of global variables.
     Table strings; // hashmap of strings, used to map "equal" strings.
     ObjUpvalue* openUpvalues;
+    
+    size_t bytesAllocated;
+    size_t nextGC;
     Obj* objects; // LinkedList of heap-allocated objets.
+    int grayCount;
+    int grayCapacity;
+    Obj** grayStack;
 } VM;
 
 typedef enum {
