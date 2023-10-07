@@ -33,6 +33,18 @@ static bool errNative(int argCount, Value* args) {
     return false;
 }
 
+static bool hasFieldNative(int argCount, Value* args) {
+    // call fails in these cases
+    if (argCount != 2) return false;
+    if (!IS_INSTANCE(args[0])) return false;
+    if (!IS_STRING(args[1])) return false;
+
+    ObjInstance* instance = AS_INSTANCE(args[0]);
+    Value dummy;
+    args[-1] = BOOL_VAL(tableGet(&instance->fields, AS_STRING(args[1]), &dummy));
+    return true;
+}
+
 static void resetStack() {
     // simply point to the start of the stack. It doesn't matter if the rest of the stack is dirty.
     vm.stackTop = vm.stack;
@@ -88,6 +100,7 @@ void initVM() {
 
     defineNative("clock", clockNative);
     defineNative("err", errNative);
+    defineNative("hasField", hasFieldNative);
 }
 
 
@@ -135,6 +148,11 @@ static bool call(ObjClosure* closure, int argCount) {
 static bool callValue(Value callee, int argCount) {
     if (IS_OBJ(callee)) {
         switch(OBJ_TYPE(callee)) {
+            case OBJ_CLASS: {
+                ObjClass* klass = AS_CLASS(callee);
+                vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(klass));
+                return true;
+            }
             case OBJ_CLOSURE:
                 return call(AS_CLOSURE(callee), argCount);
             case OBJ_NATIVE:
@@ -334,6 +352,38 @@ static InterpretResult run() {
                 }
                 break;
             }
+            case OP_SET_PROPERTY: {
+                if (!IS_INSTANCE(peek(1))) {
+                    runtimeError("Only instances have fields.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                ObjInstance* instance = AS_INSTANCE(peek(1));
+                tableSet(&instance->fields, READ_STRING(), peek(0));
+                Value value = pop();
+                pop();
+                push(value);
+                break;
+            }
+            case OP_GET_PROPERTY: {
+                if (!IS_INSTANCE(peek(0))) {
+                    runtimeError("Only instances have properties.");
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+
+                ObjInstance* instance = AS_INSTANCE(peek(0));
+                ObjString* name = READ_STRING();
+
+                Value value;
+                if (tableGet(&instance->fields, name, &value)) {
+                    pop(); // pops the instance.
+                    push(value);
+                    break;
+                }
+
+                runtimeError("Undefined property '%s'.", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
             case OP_EQUAL: {
                 Value b = pop();
                 Value a = pop();
@@ -445,6 +495,9 @@ static InterpretResult run() {
                 ip = frame->ip;
                 break;
             }
+            case OP_CLASS:
+                push(OBJ_VAL(newClass(READ_STRING())));
+                break;
         }
     }
 

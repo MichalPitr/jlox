@@ -29,12 +29,15 @@ typedef enum {
     OP_SET_GLOBAL,
     OP_GET_UPVALUE,
     OP_SET_UPVALUE,
+    OP_GET_PROPERTY,
+    OP_SET_PROPERTY,
     OP_GET_LOCAL,
     OP_SET_LOCAL,
     OP_CALL,
     OP_CLOSURE, // For each upvalue, there are 2 1-byte operands,, 1st byte is 'isLocal', 2nd is index 
     OP_CLOSE_UPVALUE,
     OP_RETURN,
+    OP_CLASS,
 } OpCode;
 
 typedef struct {

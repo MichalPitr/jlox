@@ -1,13 +1,11 @@
-var a = "global";
+class Pair {}
 
-{
-  fun assign() {
-    a = "assigned";
-  }
+var pair = Pair();
+pair.first = 1;
+pair.second = 2;
 
-  var a = "inner";
-  assign();
-  print a; // expect: inner
+if (hasField(pair, "last")) {
+    print pair.last;
+} else {
+    print "this field does not exist";
 }
-
-print a; // expect: assigned
