@@ -4,8 +4,7 @@ var pair = Pair();
 pair.first = 1;
 pair.second = 2;
 
-if (hasField(pair, "last")) {
-    print pair.last;
-} else {
-    print "this field does not exist";
-}
+print pair.first;
+
+deleteField(pair, "first");
+print pair.first;

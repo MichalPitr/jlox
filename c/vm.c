@@ -45,6 +45,17 @@ static bool hasFieldNative(int argCount, Value* args) {
     return true;
 }
 
+static bool deleteFieldNative(int argCount, Value* args) {
+    // call fails in these cases
+    if (argCount != 2) return false;
+    if (!IS_INSTANCE(args[0])) return false;
+    if (!IS_STRING(args[1])) return false;
+
+    ObjInstance* instance = AS_INSTANCE(args[0]);
+    return tableDelete(&instance->fields, AS_STRING(args[1]));
+}
+
+
 static void resetStack() {
     // simply point to the start of the stack. It doesn't matter if the rest of the stack is dirty.
     vm.stackTop = vm.stack;
@@ -101,6 +112,7 @@ void initVM() {
     defineNative("clock", clockNative);
     defineNative("err", errNative);
     defineNative("hasField", hasFieldNative);
+    defineNative("deleteField", deleteFieldNative);
 }
 
 
