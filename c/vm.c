@@ -223,6 +223,13 @@ static void closeUpvalues(Value* last) {
     }
 }
 
+static void defineMethod(ObjString* name) {
+    Value method = peek(0); // Closure.
+    ObjClass* klass = AS_CLASS(peek(1));
+    tableSet(&klass->methods, name, method);
+    pop();
+}
+
 /* 
     Value is "falsey" if its null or false, otherwise true
     This makes 0 also true, which feels odd.
@@ -294,7 +301,7 @@ static InterpretResult run() {
         }
         printf("\n");
         disassambleInstruction(&frame->closure->function->chunk, 
-            (int)(frame->ip - frame->closure->function->chunk.code));
+            (int)(ip - frame->closure->function->chunk.code));
 #endif
 
         uint8_t instruction;
@@ -509,6 +516,9 @@ static InterpretResult run() {
             }
             case OP_CLASS:
                 push(OBJ_VAL(newClass(READ_STRING())));
+                break;
+            case OP_METHOD:
+                defineMethod(READ_STRING());
                 break;
         }
     }

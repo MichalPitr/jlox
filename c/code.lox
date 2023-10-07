@@ -1,10 +1,7 @@
-class Pair {}
+print "no";
+var i = "hello";
 
-var pair = Pair();
-pair.first = 1;
-pair.second = 2;
-
-print pair.first;
-
-deleteField(pair, "first");
-print pair.first;
+if (true) {
+    print "wow";
+}
+print i;
