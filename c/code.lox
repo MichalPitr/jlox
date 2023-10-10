@@ -1,7 +1,15 @@
-print "no";
-var i = "hello";
+class CoffeeMaker {
+  init(coffee) {
+    this.coffee = coffee;
+  }
 
-if (true) {
-    print "wow";
+  brew() {
+    print "Enjoy your cup of " + this.coffee;
+
+    // No reusing the grounds!
+    this.coffee = nil;
+  }
 }
-print i;
+
+var maker = CoffeeMaker("coffee and chicory");
+maker.brew();

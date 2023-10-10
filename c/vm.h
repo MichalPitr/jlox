@@ -24,6 +24,7 @@ typedef struct {
     Value* stackTop;
     Table globals; // hashmap of global variables.
     Table strings; // hashmap of strings, used to map "equal" strings.
+    ObjString* initString;
     ObjUpvalue* openUpvalues;
     
     size_t bytesAllocated;
