@@ -34,6 +34,7 @@ typedef enum {
     OP_GET_LOCAL,
     OP_SET_LOCAL,
     OP_CALL,
+    OP_INVOKE, // 2 operands: index of property name in const table, number of arguments. combines GET and CALL.
     OP_CLOSURE, // For each upvalue, there are 2 1-byte operands,, 1st byte is 'isLocal', 2nd is index 
     OP_CLOSE_UPVALUE,
     OP_RETURN,

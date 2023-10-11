@@ -1,15 +1,17 @@
-class CoffeeMaker {
-  init(coffee) {
-    this.coffee = coffee;
+class Oops {
+  hello() {
+    return "surprise!";
   }
 
-  brew() {
-    print "Enjoy your cup of " + this.coffee;
-
-    // No reusing the grounds!
-    this.coffee = nil;
+  get() {
+    return "some string";
   }
 }
 
-var maker = CoffeeMaker("coffee and chicory");
-maker.brew();
+var instance = Oops();
+print instance;
+print instance.get();
+print Oops().hello();
+
+var method = instance.get;
+print method();

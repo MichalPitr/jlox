@@ -325,6 +325,12 @@ static void dot(bool canAssign) {
     if (canAssign && match(TOKEN_EQUAL)) {
         expression();
         emitBytes(OP_SET_PROPERTY, name);
+
+    // method call
+    } else if (match(TOKEN_LEFT_PAREN)) {
+        uint8_t argCount = argumentList();
+        emitBytes(OP_INVOKE, name);
+        emitByte(argCount);
     } else {
         emitBytes(OP_GET_PROPERTY, name);
     }
@@ -833,9 +839,9 @@ static void returnStatement() {
         if (current->type == TYPE_INITIALIZER) {
             error("Can't return a value from an initializer.");
         }
-        
+
         expression();
-        consume(TOKEN_SEMICOLON, "Expect ';' after return value.");
+        consume(TOKEN_SEMICOLON, "Expected ';' after return value.");
         emitByte(OP_RETURN);
     }
 }
